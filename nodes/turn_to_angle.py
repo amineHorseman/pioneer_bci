@@ -9,21 +9,25 @@ from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
 import math
 import socket
- 
+
+print('turn to angle') 
 #### config #### 
 angle_error = 0.1
-move_distance = 2
-obstacle_min_distance = 2
+move_distance = 1
+obstacle_min_distance = 0.6
 port = 12347
-ip = '10.3.66.5'
-cmd_vel_topic = 'cmd_vel_mux/input/teleop'
+#ip = '10.3.66.123'
+ip = 'localhost'
+# cmd_vel_topic = 'cmd_vel_mux/input/teleop'
+cmd_vel_topic = 'cmd_vel'
 laser_topic = 'scan'
-odom_topic = 'odom'
+#odom_topic = 'odom'
+odom_topic = 'pose'
 regulated_speeds = {0.03: 0,
-                    0.1: 0.03,
-                    1: 0.05,
-                    10: 0.1,
-                    30: 0.3,
+                    0.1: 0.01,
+                    1: 0.03,
+                    3: 0.1,
+                    20: 0.3,
                     45: 0.5,
                     360: 0.5}  # mapping angles with angular speeds
 speed_reduce_factor = 0.1  # reducing linear speed
@@ -35,6 +39,9 @@ yaw = 0.0
 obstacle_distance = 0
 clockwise = -1
 anticlockwise = +1
+turning = False
+turning_direction = 0
+old_diff = None
 
 def laser_callback(scan):
     global obstacle_distance
@@ -68,6 +75,13 @@ def get_rotation_direction(current, target):
         a = abs(current) + abs(target)
         return (anticlockwise if a < 360-a else clockwise)*sign(target)
 
+def get_closest_rotation_angle(old_angle, target_angle):
+    angle_diff_left = (old_angle - target_angle) % 360
+    angle_diff_right = (target_angle - old_angle) % 360
+    turning_angle = -angle_diff_left if angle_diff_left < angle_diff_right \
+                                     else angle_diff_right
+    return turning_angle
+
 def stop_motors(): 
     command.angular.z = 0
     command.linear.x = 0
@@ -84,19 +98,34 @@ r = rospy.Rate(10)
 command =Twist()
 
 def drive(target, speed):
+    global turning, turning_direction, old_diff
     print("rotating to {}...".format(target))
     while not rospy.is_shutdown() and target is not None:
         yaw_deg = yaw*180/math.pi
-        diff_deg = target-yaw_deg
-        # print("target={} current:{} diff:{}".format(target, yaw_deg, diff_deg))
+        #diff_deg = target-yaw_deg
+        diff_deg = get_closest_rotation_angle(yaw_deg, target)
+        print("  target={} current:{} diff:{}".format(target, yaw_deg, diff_deg))
         if (abs(diff_deg) < angle_error):
             print("final angle_error = ", diff_deg)
             break
-        command.angular.z = regulated_angular_speed(diff_deg) * get_rotation_direction(yaw_deg, target)
+        if old_diff is not None and sign(old_diff) != sign(diff_deg) and abs(diff_deg) < 3:
+            # avoid p3dx angle diff switching sign
+            print("angle diff switch sign. Stop truning")
+            break
+        if not turning:
+            # get rotation direction and save it to keep it for next iteration
+            # (avoids oscillations)
+            turning_direction = get_rotation_direction(yaw_deg, target)
+            turning = True
+            old_diff = diff_deg
+        command.angular.z = regulated_angular_speed(diff_deg) * turning_direction
         pub.publish(command)
-
         r.sleep()
+        old_diff = diff_deg
+
     stop_motors()
+    turning = False
+    old_diff = None
 
     command.linear.x = speed * speed_reduce_factor
     print("moving forward with speed {}...".format(command.linear.x)) 
@@ -123,10 +152,19 @@ def drive(target, speed):
     print ('Stopped. Travelled disance=', distance)
     stop_motors()
 
-def parse_angle(direction):
+"""
+def parse_angle(direction):  # for 3rd person mode
     angle = [None, 45, 0, -45, 90, None, -90, 135, 180, -135] # 0 and 5 => do nothing
     return angle[direction]
+"""
 
+def parse_angle(direction):  # for 1st person mode
+    angle = [0, 135, 180, -135, 90, 0, -90, 45, 0, -45] # 0 and 5 => do nothing
+    offset = angle[direction]
+    yaw_deg = yaw*180/math.pi
+    new = yaw_deg + offset
+    print("#######  offset = ", offset, " - old = ", yaw_deg, "new = ", new)
+    return new
 
 bufferSize = 256
 queue = 5
@@ -139,20 +177,24 @@ s.listen(queue)
 print("~ Waiting for client...")
 newSocket, address = s.accept()
 print("  New request from {}".format(address))
-ready = 1
 old_speed = 0
 try:
-    while 1: 
+    while True:
+        status = 1
         emergency_stop = False
         print("    1. Waiting for command")
         #data, addr = serverSocket.recvfrom(bufferSize)
         data = newSocket.recv(bufferSize)
+        with open("../logs/socket-log.txt", "a") as f:
+            f.write("\n" + str(data))
         if not(data[0].isdigit()) or not(data[1].isdigit()):
             print("    2. Commands recieved `{}` are not digits", data)
             print("    3. Ignoring command")
+            status = 0
         elif data[0] == '0':
             print("    2. Command recieved: direction `0` does not exist")
             print("    3. Ignoring command")
+            status = 0
         else:
             direction = int(data[0])
             angle = parse_angle(direction)
@@ -165,7 +207,7 @@ try:
             print("    2. Command recieved: direction={} speed={}".format(direction, speed))
             print("    3. Moving the robot...")
             drive(angle, speed)
-        print("    4. Sending `ready` status...")
-        newSocket.send(str(ready))
+        print("    4. Sending last move status...")
+        newSocket.send(str(status))
 finally:
     s.close()

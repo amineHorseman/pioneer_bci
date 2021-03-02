@@ -7,7 +7,7 @@ from tf.transformations import euler_from_quaternion, quaternion_from_euler
 import math
  
 #### config
-odom_topic = 'odom'
+odom_topic = 'pose'
 #####
 
 roll = pitch = yaw = 0.0
