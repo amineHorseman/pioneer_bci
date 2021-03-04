@@ -1,4 +1,8 @@
-<?xml	version="1.0"?>
+<?xml version="1.0"?>
 <launch>
-		<node name="turn_to_angle"	pkg="pioneer_bci" type="turn_to_angle.py"/>
+		<include file="$(find pioneer_bringup)/launch/laser_lms1xx.launch" />
+		<node name="bci_mover" pkg="pioneer_bci" type="bci_mover.py" output="screen">
+			<param name="socket_port" value="12347" />
+			<param name="socket_ip" value="localhost" />
+		</node>
 </launch>
