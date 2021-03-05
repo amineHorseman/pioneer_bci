@@ -1,8 +1,0 @@
-<?xml version="1.0"?>
-<launch>
-		<include file="$(find pioneer_bringup)/launch/laser_lms1xx.launch" />
-		<node name="bci_mover" pkg="pioneer_bci" type="bci_mover.py" output="screen">
-			<param name="socket_port" value="12347" />
-			<param name="socket_ip" value="localhost" />
-		</node>
-</launch>

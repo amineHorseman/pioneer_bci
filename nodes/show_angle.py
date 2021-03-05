@@ -1,14 +1,10 @@
 #!/usr/bin/env python
-
-from __future__ import print_function
-import rospy
-from nav_msgs.msg import Odometry
-from tf.transformations import euler_from_quaternion, quaternion_from_euler
+from config import Config
 import math
- 
-#### config
-odom_topic = 'pose'
-#####
+from nav_msgs.msg import Odometry
+import rospy
+import sys
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
 roll = pitch = yaw = 0.0
 
@@ -18,11 +14,20 @@ def get_rotation(msg):
     orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
     (roll, pitch, yaw) = euler_from_quaternion (orientation_list)
 
-rospy.init_node('show_angle')
-r = rospy.Rate(10)
-sub = rospy.Subscriber (odom_topic, Odometry, get_rotation)
+if __name__=="__main__":
+    # get odom_topic
+    if len(sys.argv) > 0:
+        odom_topic = sys.argv[0]
+    else:
+        odom_topic = Config.odom_topic
 
-while not rospy.is_shutdown():
+    # launch node
+    rospy.init_node('show_angle')
+    r = rospy.Rate(10)
+    sub = rospy.Subscriber (Config.odom_topic, Odometry, get_rotation)
+
+    # print current robot's angle
+    while not rospy.is_shutdown():
         yaw_deg = yaw*180/math.pi
-        print("current angle: {}".format(yaw_deg))
+        rospy.loginfo("current angle: %f", yaw_deg)
         r.sleep()
