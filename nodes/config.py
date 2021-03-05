@@ -7,16 +7,17 @@ class Config:
     queue = 5
     
     ## laser & odom:
-    cmd_vel_topic = 'cmd_vel'  # 'cmd_vel_mux/input/teleop'
+    cmd_vel_topic = 'cmd_vel'
     laser_topic = 'scan'
-    odom_topic = 'pose' # 'odom'
+    odom_topic = 'pose'
     laserscan_range = (160, 480)
     
     ## mover params:
     angle_error = 0.1
     move_distance = 1
     obstacle_min_distance = 0.6
-    move_forward_at_each_move = True
+    move_forward_at_each_move = False
+    first_person_mode = True   # Use relative angles instead of absolute angles
     regulated_speeds = {0.03: 0,
                         0.1: 0.01,
                         1: 0.03,

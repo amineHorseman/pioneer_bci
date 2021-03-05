@@ -1,33 +1,37 @@
 #!/usr/bin/env python
 from config import Config
+from geometry_msgs.msg import Twist
 import rospy
 import math
 
 def turn_to_angle(direction, speed, publisher, rate):
-    target = parse_angle(direction)
-    rospy.logdebug("rotating to %f...", target)
-    while not rospy.is_shutdown() and target is not None:
-        yaw_deg = Config.pose["yaw"]*180/math.pi
-        #diff_deg = target-yaw_deg
-        diff_deg = get_closest_rotation_angle(yaw_deg, target)
-        rospy.logdebug("  target=%f - current:%f - diff:%f", target, yaw_deg, diff_deg)
-        if (abs(diff_deg) < Config.angle_error):
-            rospy.logdebug("final angle_error = %f", diff_deg)
+    command = Twist()
+    target_angle = parse_angle(direction)
+    rospy.logdebug("rotating to %f...", target_angle)
+    while not rospy.is_shutdown() and target_angle is not None:
+        current_angle = Config.pose["yaw"]*180/math.pi
+        angle_diff = get_closest_rotation_angle(current_angle, target_angle)
+        rospy.logdebug("  target_angle: %f - current: %f - diff: %f", target_angle, current_angle, angle_diff)
+        if (abs(angle_diff) < Config.angle_error):
+            rospy.logdebug("final angle_error = %f", angle_diff)
             break
-        if Config.old_diff is not None and sign(Config.old_diff) != sign(diff_deg) and abs(diff_deg) < 3:
-            # avoid p3dx angle diff switching sign
+        if Config.old_angle_diff is not None and sign(Config.old_angle_diff) != sign(angle_diff) and abs(angle_diff) < 3:
+            # handle the case when odom angle stepping from 179 to -179 while we're trying to reach 180
             rospy.logdebug("angle diff switch sign. Stop truning")
             break
         if not Config.turning:
-            # get rotation direction and save it to keep it for next iteration
-            # (avoids oscillations)
-            Config.turning_direction = get_rotation_direction(yaw_deg, target)
+            # get rotation direction and save it to keep it for next iteration (avoids oscillations)
+            Config.turning_direction = get_rotation_direction(current_angle, target_angle)
             Config.turning = True
-            Config.old_diff = diff_deg
-        Config.command.angular.z = regulated_angular_speed(diff_deg) * Config.turning_direction
-        publisher.publish(Config.command)
+            Config.old_angle_diff = angle_diff
+        command.angular.z = regulated_angular_speed(angle_diff) * Config.turning_direction
+        publisher.publish(command)
         rate.sleep()
-        Config.old_diff = diff_deg
+        Config.old_angle_diff = angle_diff
+        
+    # stop motors
+    publisher.publish(Twist())
+    Config.turning = False
 
 def get_closest_rotation_angle(old_angle, target_angle):
     angle_diff_left = (old_angle - target_angle) % 360
@@ -55,17 +59,15 @@ def regulated_angular_speed(angle_diff):
     rospy.logdebug("rotating at speed=%f (angle_diff=%f)", proportional_speed, angle_diff)
     return proportional_speed
 
-# TODO: integrate 2 'parse_angle' fct & set mode as Config var 
-"""
-def parse_angle(direction):  # for 3rd person mode
-    angle = [None, 45, 0, -45, 90, None, -90, 135, 180, -135] # 0 and 5 => do nothing
-    return angle[direction]
-"""
-
-def parse_angle(direction):  # for 1st person mode
-    angle = [0, 135, 180, -135, 90, 0, -90, 45, 0, -45] # 0 and 5 => do nothing
+def parse_angle(direction):
+    angle = [0, 45, 0, -45, 90, 0, -90, 135, 180, -135] # 0 and 5 => do nothing
     offset = angle[direction]
-    yaw_deg = Config.pose["yaw"]*180/math.pi
-    new = yaw_deg + offset
-    rospy.logdebug("  offset = %f, - old_ang = %f - new_ang = %f", offset, yaw_deg, new)
-    return new
+    if not Config.first_person_mode:
+        # use relative angles
+        return offset
+    else:
+        # use absolute angles
+        old_angle = Config.pose["yaw"]*180/math.pi
+        new_angle = old_angle + offset
+        rospy.logdebug("  offset = %f, - old_ang = %f - new_ang = %f", offset, old_angle, new_angle)
+        return new_angle
