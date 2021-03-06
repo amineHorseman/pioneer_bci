@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<launch>
+    <!-- 
+        Make sure you set the TURTLEBOT3_MODEL environemnt variable before launching this file:
+        $ export TURTLEBOT3_MODEL=burger
+    -->
+    <arg name="ip" doc="socket ip" default="" />
+    <arg name="port" doc="socket ip" default="" />
+    <arg name="cmd_vel_topic" doc="cmd_vel topic name" default="cmd_vel" />
+    <arg name="odom_topic" doc="odometry topic name" default="odom" />
+    <arg name="laser_topic" doc="laser topic name" default="scan" />
+
+	<param name="ip" value="$(arg ip)" />
+    <param name="port" value="$(arg port)" />
+    <param name="cmd_vel_topic" value="$(arg cmd_vel_topic)" />
+    <param name="odom_topic" value="$(arg odom_topic)" />
+    <param name="laser_topic" value="$(arg laser_topic)" />
+    
+	<include file="$(find turtlebot3_gazebo)/launch/turtlebot3_empty_world.launch" /> 
+	<node name="bci_mover" pkg="pioneer_bci" type="bci_mover.py" output="screen">
+	</node>
+</launch>
