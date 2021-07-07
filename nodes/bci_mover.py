@@ -93,11 +93,14 @@ if __name__ == "__main__":
                     else:
                         old_speed = speed
                     rospy.loginfo("    Executing move: direction=`%d` speed=`%d`", direction, speed)
-                    turn_to_angle(direction, speed,  publisher, rate)
-                    if Config.move_forward_at_each_move or direction == 2:
-                        move_forward(speed, publisher, rate)
+                    if direction == 8 and Config.move_backward:
+                    	move_forward(-speed, publisher, rate)
                     else:
-                        publisher.publish(Twist())
+                    	turn_to_angle(direction, speed,  publisher, rate)
+                    	if Config.move_forward_at_each_move or direction == 2:
+                    		move_forward(speed, publisher, rate)
+                    	else:
+                        	publisher.publish(Twist())
                 rospy.loginfo("    3. Sending back robot status...")
                 newSocket.send(status.encode())
             newSocket.close()

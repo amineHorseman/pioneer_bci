@@ -11,23 +11,30 @@ def move_forward(speed, publisher, rate):
     x_start = Config.pose["x"]
     y_start = Config.pose["y"]
     distance = 0
-    while not rospy.is_shutdown() and distance < Config.move_distance:
-        rospy.logdebug("x=%f y=%f (travelled=%f)", Config.pose["x"],Config.pose["y"],distance)
-        if not(math.isnan(Config.obstacle_distance)):
-            rospy.logdebug("obstacle distance = %f", Config.obstacle_distance)
-        if Config.obstacle_distance < Config.obstacle_min_distance: 
-            # emergency_stop:
-            rospy.logdebug("stopping [obstacle ahead]")
-            break
-        else:
-            # go forward
-            if distance + Config.slow_down_distance > Config.move_distance:
-                command.linear.x = 0.1
-                rospy.logdebug("slowing down to speed 0.1")
+    if speed < 0:
+        while not rospy.is_shutdown() and distance < Config.move_distance_backward:
             publisher.publish(command)
             rate.sleep()
             distance = math.sqrt((Config.pose["x"]-x_start)*(Config.pose["x"]-x_start) + 
                                  (Config.pose["y"]-y_start)*(Config.pose["y"]-y_start))
+    else:
+        while not rospy.is_shutdown() and distance < Config.move_distance:
+            rospy.logdebug("x=%f y=%f (travelled=%f)", Config.pose["x"],Config.pose["y"],distance)
+            if not(math.isnan(Config.obstacle_distance)):
+                rospy.logdebug("obstacle distance = %f", Config.obstacle_distance)
+            if Config.obstacle_distance < Config.obstacle_min_distance: 
+                # emergency_stop:
+                rospy.logdebug("stopping [obstacle ahead]")
+                break
+            else:
+                # go forward
+                if distance + Config.slow_down_distance > Config.move_distance:
+                    command.linear.x = 0.1
+                    rospy.logdebug("slowing down to speed 0.1")
+                publisher.publish(command)
+                rate.sleep()
+                distance = math.sqrt((Config.pose["x"]-x_start)*(Config.pose["x"]-x_start) + 
+                                     (Config.pose["y"]-y_start)*(Config.pose["y"]-y_start))
 
     # stop motors
     publisher.publish(Twist())

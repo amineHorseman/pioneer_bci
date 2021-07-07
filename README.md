@@ -14,7 +14,7 @@ This will use the [pionner_bringup](https://github.com/amineHorseman/pioneer_bri
 ### 2. Default use without using the lms1xx laser:
 Execute the following line in the commandline:
 ```
-$ roslaunch pioneer_bci bci_mover.launch lms1xx:=false
+$ 
 ```
 This will use the [pionner_bringup](https://github.com/amineHorseman/pioneer_bringup) package to load ROSARIA with a minimal mode.
 

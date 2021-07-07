@@ -14,9 +14,11 @@ class Config:
     
     ## mover params:
     angle_error = 0.1
-    move_distance = 1
+    move_distance = 0.5
+    move_distance_backward = 0.1
     obstacle_min_distance = 0.6
     move_forward_at_each_move = False
+    move_backward = True  # allow moving backward if True, or turn 180 then go forward
     first_person_mode = True   # Use relative angles instead of absolute angles
     regulated_speeds = {0.03: 0,
                         0.1: 0.01,
