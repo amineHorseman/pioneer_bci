@@ -61,6 +61,8 @@ if __name__ == "__main__":
     s.bind(('', Config.port))
     s.listen(Config.queue)
 
+    recieved_commands = []
+
     # main loop
     restart = 1
     while True:
@@ -75,6 +77,7 @@ if __name__ == "__main__":
                 emergency_stop = False
                 rospy.loginfo("    1. Waiting for command...")
                 data = newSocket.recv(Config.bufferSize).decode()
+                recieved_commands.append(data)
                 with open("../logs/socket-log.txt", "a") as f:
                     f.write("\n" + str(data))
                 if len(data) < 2 or not(data[0].isdigit()) or not(data[1].isdigit()):
@@ -85,13 +88,18 @@ if __name__ == "__main__":
                     status = '0'
                     socket_listening = False
                 else:
+                    # Valid command recieved
                     rospy.loginfo("    2. Command recieved `%s`.", data)
-                    direction = int(data[0])
-                    speed = int(data[1])
+                    current_command = recieved_commands[-1]
+                    # direction = int(data[0])
+                    # speed = int(data[1])
+                    direction = int(current_command[0])
+                    speed = int(current_command[1])
                     if speed == 0:
                         speed = old_speed
                     else:
                         old_speed = speed
+                    # Moving
                     rospy.loginfo("    Executing move: direction=`%d` speed=`%d`", direction, speed)
                     if direction == 8 and Config.move_backward:
                     	move_forward(-speed, publisher, rate)
